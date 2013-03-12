@@ -82,8 +82,9 @@ class GRESTServlet extends HttpServlet implements ResourceConnector {
                 request.setAttribute("produce", "html")
             }
         }
-
+        
         if (request.getParameter("callback")) {
+            method = "jsonp"
             request.setAttribute("produce", "jsonp")
             ct = "text/javascript"
         }
@@ -147,37 +148,46 @@ class GRESTServlet extends HttpServlet implements ResourceConnector {
     
     void runScript(script, request, response)
     {
-        def binding = new ServletBinding(request, response, servletContext)
-        
-        String ct = request.contentType
-        
-        def data = null;
-        
+    use(ServletCategory) {
+
+        def data = null
+
         if (request.contentLength > 0) {
-            
+
+            def ct  = request.contentType
             def enc = request.characterEncoding ?: "UTF-8"
-            
+
             if (ct.startsWith(ctJSON)) {
                 data = new JsonSlurper().parse(request.inputStream.newReader(enc))
-                request.setAttribute("consume", "json")
+                request.consume = "json"
             }
             else if (ct.startsWith(ctXML)) {
                 data = new XmlSlurper().parse(request.inputStream.newReader(enc))
-                request.setAttribute("consume", "xml")
+                request.consume = "xml"
             }
             else if (ct.startsWith(ctTEXT)) {
                 data = []
-                request.inputStream.eachLine("UTF-8") {
-                    data.push it
-                }
-                request.setAttribute("consume", "text")
+                request.inputStream.eachLine(enc) { data.push it }
+                request.consume = "text"
             }
+
         }
-        
+
+        def binding = new ServletBinding(request, response, servletContext)
         binding.setVariable("data", data)
-        
-        use(ServletCategory) {
-            gse.run(script.substring(1), binding)
+
+        // Add callback function for JSONP
+        if (request.produce == "jsonp") {
+            def out = binding.getVariable("out")
+            out << request.getParameter("callback") << "("
         }
+
+        gse.run(script.substring(1), binding)
+
+        // Closing parentheses for JSONP
+        if (request.produce == "jsonp") {
+            binding.getVariable("out") << ")"
+        }
+    }
     }
 }
