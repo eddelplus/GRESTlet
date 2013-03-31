@@ -1,6 +1,6 @@
 SET COLLATION ENGLISH STRENGTH SECONDARY;
 create table WINE (
-  ID        int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ID        int(11) NOT NULL PRIMARY KEY,
   WINENAME  varchar(45),
   VINTAGE   varchar(45),
   GRAPES    varchar(45),
@@ -9,6 +9,7 @@ create table WINE (
   DESCRIPTION varchar(2048),
   PICTURE   varchar(256)
 );
+create sequence WINE_SEQ start with 20;
 create index WINE_IDX_WINENAME on WINE (WINENAME);
 insert into WINE values (1,'CHATEAU DE SAINT COSME','2009','Grenache / Syrah','France','Southern Rhone / Gigondas',STRINGDECODE('The aromas of fruit and spice give one a hint of the light drinkability of this lovely wine, which makes an excellent complement to fish dishes.'),'saint_cosme.jpg');
 insert into WINE values (2,'LAN RIOJA CRIANZA','2006','Tempranillo','Spain','Rioja',STRINGDECODE('A resurgence of interest in boutique vineyards has opened the door for this excellent foray into the dessert wine market. Light and bouncy, with a hint of black truffle, this wine will not fail to tickle the taste buds.'),'lan_rioja.jpg');
@@ -23,4 +24,3 @@ insert into WINE values (10,'DOMAINE SERENE','2007','Pinot Noir','USA','Oregon',
 insert into WINE values (11,'BODEGA LURTON','2011','Pinot Gris','Argentina','Mendoza',STRINGDECODE('Solid notes of black currant blended with a light citrus make this wine an easy pour for varied palates.'),'bodega_lurton.jpg');
 insert into WINE values (12,'LES MORIZOTTES','2009','Chardonnay','France','Burgundy',STRINGDECODE('Breaking the mold of the classics, this offering will surprise and undoubtedly get tongues wagging with the hints of coffee and tobacco in\nperfect alignment with more traditional notes. Breaking the mold of the classics, this offering will surprise and\nundoubtedly get tongues wagging with the hints of coffee and tobacco in\nperfect alignment with more traditional notes. Sure to please the late-night crowd with the slight jolt of adrenaline it brings.'),'morizottes.jpg');
 insert into WINE values (13,'ÜRZIGER WÜRZGARTEN','2009','Riesling','Germany','Mosel',STRINGDECODE('This Riesling comes from some fantastic terroir - and besides we need some Umlaut testing here.'),'morizottes.jpg');
-create sequence WINE_SEQ start with 20;
