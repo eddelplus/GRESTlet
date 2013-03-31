@@ -1,16 +1,15 @@
 import pool.H2Pool
 
-def tabname = request.pathvar1?.toUpperCase()
-if (!tabname) {
-    response.setStatus(400, "table not specified")
+if (!(request.pathvar1 ==~ /\w+/)) {
+    response.setStatus(400, "illegal table identifier")
     return
 }
 
 def sql = H2Pool.getSql(context)
 
-if (data.ID) {
+if (data.ID?.isBigInteger()) {
     sql.resultSetConcurrency = java.sql.ResultSet.CONCUR_UPDATABLE
-    sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID) { row ->
+    sql.eachRow('select * from ' + request.pathvar1.toUpperCase() + ' where ID=' + data.ID) { row ->
         data.each { fld, val -> row[fld] = val }
     }
 }

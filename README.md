@@ -251,15 +251,14 @@ The GRESTlet for retrieving a list of table rows or a specific row with GET look
 
     import pool.H2Pool
 
-    def tabname = request.pathvar1?.toUpperCase()
-    if (!tabname) {
-        response.setStatus(400, "table not specified")
+    if (!(request.pathvar1 ==~ /\w+/)) {
+        response.setStatus(400, "illegal table identifier")
         return
     }
 
     def sql = H2Pool.getSql(context)
 
-    def stmt = 'select * from ' + tabname
+    def stmt = 'select * from ' + request.pathvar1.toUpperCase()
 
     if (request.pathvar2) {
         // Get specific row by id
@@ -291,8 +290,14 @@ Here is the script for deleting an entry:
 
     import pool.H2Pool
 
+    if (!(request.pathvar1 ==~ /\w+/)) {
+        response.setStatus(400, "illegal table identifier")
+        return
+    }
+
+    def sql = H2Pool.getSql(context)
+
     if (request.pathvar2) {
-        def sql = H2Pool.getSql(context)
         def stmt = 'delete from ' + request.pathvar1.toUpperCase() + ' where ID=?'
         if (sql.executeUpdate(stmt, [request.pathvar2]) > 0) {
             response.setStatus(204, "successfully deleted")
@@ -310,17 +315,16 @@ The script for POST looks like this:
 
     import pool.H2Pool
 
-    def tabname = request.pathvar1?.toUpperCase()
-    if (!tabname) {
-        response.setStatus(400, "table not specified")
+    if (!(request.pathvar1 ==~ /\w+/)) {
+        response.setStatus(400, "illegal table identifier")
         return
     }
 
     def sql = H2Pool.getSql(context)
 
-    if (data.ID) {
+    if (data.ID?.isBigInteger()) {
         sql.resultSetConcurrency = java.sql.ResultSet.CONCUR_UPDATABLE
-        sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID) { row ->
+        sql.eachRow('select * from ' + request.pathvar1.toUpperCase() + ' where ID=' + data.ID) { row ->
             data.each { fld, val -> row[fld] = val }
         }
     }

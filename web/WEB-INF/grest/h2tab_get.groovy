@@ -1,14 +1,13 @@
 import pool.H2Pool
 
-def tabname = request.pathvar1?.toUpperCase()
-if (!tabname) {
-    response.setStatus(400, "table not specified")
+if (!(request.pathvar1 ==~ /\w+/)) {
+    response.setStatus(400, "illegal table identifier")
     return
 }
 
 def sql = H2Pool.getSql(context)
 
-def stmt = 'select * from ' + tabname
+def stmt = 'select * from ' + request.pathvar1.toUpperCase()
 
 if (request.pathvar2) {
     // Get specific row by id
