@@ -1,0 +1,25 @@
+<div id="content">
+<form name="WineDetail">
+    <div class="form-left-col">
+        <label>Id:</label>
+        <input name="id" type="text" ng-model="wine.ID" disabled />
+        <label>Name:</label>
+        <input type="text" name="wine_name" ng-model="wine.WINENAME" required/>
+        <label>Grapes:</label>
+        <input type="text" name="grapes" ng-model="wine.GRAPES"/>
+        <label>Country:</label>
+        <input type="text" name="country" ng-model="wine.COUNTRY"/>
+        <label>Region:</label>
+        <input type="text" name="region" ng-model="wine.REGION"/>
+        <label>Year:</label>
+        <input type="text" name="year" ng-model="wine.VINTAGE"/>
+        <button class="save" ng-click="saveWine()" ng-disabled="!WineDetail.$valid">Save</button>
+        <button class="delete" ng-click="deleteWine()" ng-hide="!wine.ID">Delete</button>
+    </div>
+    <div class="form-right-col">
+        <img width="250" height="300" ng-src="pics/{{ wine.PICTURE }}" onerror="this.src='pics/generic.jpg'"/>
+        <label>Notes:</label>
+        <textarea name="description" ng-model="wine.DESCRIPTION"></textarea>
+    </div>
+</form>
+</div>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+    <servlet>
+        <servlet-name>GRESTServlet</servlet-name>
+        <servlet-class>net.eddelbuettel.grest.GRESTServlet</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>H2Console</servlet-name>
+        <servlet-class>org.h2.server.web.WebServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>GRESTServlet</servlet-name>
+        <url-pattern>/grest/*</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>H2Console</servlet-name>
+        <url-pattern>/h2console/*</url-pattern>
+    </servlet-mapping>
+    <session-config>
+        <session-timeout>30</session-timeout>
+    </session-config>
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+</web-app>
