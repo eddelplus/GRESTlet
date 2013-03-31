@@ -321,10 +321,11 @@ The script for POST looks like this:
     }
 
     def sql = H2Pool.getSql(context)
+    def tabname = request.pathvar1.toUpperCase()
 
-    if (data.ID?.isBigInteger()) {
+    if (data.ID) {
         sql.resultSetConcurrency = java.sql.ResultSet.CONCUR_UPDATABLE
-        sql.eachRow('select * from ' + request.pathvar1.toUpperCase() + ' where ID=' + data.ID) { row ->
+        sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID.toBigInteger()) { row ->
             data.each { fld, val -> row[fld] = val }
         }
     }
