@@ -11,6 +11,20 @@ GRESTServlet
 + Parsing of request bodies with Groovy's JsonSluper or XmlSluper
 + Support for JSONP
 
+Scope and Dependencies
+----------------------
+
+The repository contains the servlet code (src/java), a set of GRESTlets for generically using H2 database tables
+as RESTful resources (web/WEB-INF/grest) and an adaption of Christophe Coenraet's wine cellar application. The
+latter grabs Angular.js 1.0.5 from the GoogleAPIs CDN.
+
+The application has been tested with Tomcat 6 and JDK 6. The external JARs needed are:
++ groovy-all-2.1.1.jar
++ h2-1.3.170.jar
+
+The servlet code utilizes annotations for static compilation. Without them it can probably be back-ported to
+Groovy 1.8.x.
+
 Outset
 ------
 The GRESTlet dispatcher servlet introduced here aims to fill an apparent gap for programmers creating RESTful backends
@@ -210,135 +224,116 @@ Of course all methods could also be handled by a single script with appropriate 
 It is important to note that _request.method_ will still be in uppercase and return "GET" for JSONP requests.
 Whether it is a JSONP request can be established via request.produce == "jsonp".
 
-### First example
+Sample GRESTlets
+----------------
 
 I've adapted the sample
 [REST application by Christophe Coenraets](http://coenraets.org/blog/2012/02/sample-application-with-angular-js)
 to a GRESTlet backend with groovy.sql and H2 database. Christophe has done his backends with MySQL for both
 PHP/Slim and JAX-RS/Jersey.
 
-The full example is availble for download on my
+The full example is available for download on my
 [home page](http://www.eddelbuettel.net/html5/groovy.html)
 
 One of my goals was to support the $resource approach in Angular.js out of the box, so that a RESTful resource
 implemented via GRESTlets could be declared in the client JavaScript code just like this:
 
     app.factory('WineResource', function($resource) {
-        return $resource('grest/wine/:id');
+        return $resource('grest/h2tab/wine/:id');
     });
+    
+The GRESTlets in the sample are on the grest/h2tab level. The table name is generic and **wine** ends up
+in _request.pathvar1_, while an optional id is in _request.pathvar2_.
 
-The GRESTlet for retriving a list of wines or a specific wine with GET or JSONP looks like this:
+The GRESTlet for retrieving a list of table rows or a specific row with GET looks like this:
 
-**WEB-INF/grest/wine.groovy**
+**web/WEB-INF/grest/h2tab_get.groovy**
 
     import pool.H2Pool
 
+    def tabname = request.pathvar1?.toUpperCase()
+    if (!tabname) {
+        response.setStatus(400, "table not specified")
+        return
+    }
+
     def sql = H2Pool.getSql(context)
 
-    if (request.pathvar1) {
-        // Get specific wine by id
-        def row = null
-        sql.eachRow('select * from WINE where ID=?', [ request.pathvar1 ] ) {
-           row = [
-               id:      it.ID,
-               name:    it.WINENAME,
-               year:    it.VINTAGE,
-               grapes:  it.GRAPES,
-               country: it.COUNTRY,
-               region:  it.REGION,
-               // Get content of clob type column
-               description: it.DESCRIPTION?.characterStream?.text,
-               picture: it.PICTURE
-           ]
-        }
+    def stmt = 'select * from ' + tabname
+
+    if (request.pathvar2) {
+        // Get specific row by id
+        def row = sql.firstRow(stmt + ' where ID=?', [request.pathvar2])
         if (row)
             json(row)
         else
             response.sendError(404, "Resource not found")
     }
     else {
-        // Query for all wines (id, name) only
-        def rows = []
-        sql.eachRow('select * from WINE order by WINENAME') {
-           rows << [
-               id:      it.ID,
-               name:    it.WINENAME,
-               year:    it.VINTAGE,
-               grapes:  it.GRAPES,
-               country: it.COUNTRY,
-               region:  it.REGION,
-               // Get content of clob type column
-               description: it.DESCRIPTION?.characterStream?.text,
-               picture: it.PICTURE
-           ]
-        }
-        json(rows)  
+        if (params.order) stmt = stmt + ' order by ' + params.order
+        def start = params.start?.toInteger() ?:  0
+        def limit = params.limit?.toInteger() ?: 51
+        json(sql.rows(stmt, start + 1, limit))
     }
-    sql.close()
     
 Depending on the presence of an id for a specific wine in the URL the result is either an array of all rows
-or a specific row in JSON representation. The distinction is made via request.pathvar1.
-Any prefixing for JSONP is done by the GRESTservlet.
+or a specific row in JSON representation. The distinction is made via request.pathvar2.
 
-Here is the script for deleting a wine:
+Querying the table supports different sort orders and pagination via **order**, **start** and **limit**
+parameters in the query string.
 
-**WEB-INF/grest/wine_delete.groovy**
+If the script is renamed to just h2tab.groovy, it would also fulfill JSONP requests.
+The prefixing for JSONP is done by the GRESTservlet.
+
+Here is the script for deleting an entry:
+
+**web/WEB-INF/grest/h2tab_delete.groovy**
 
     import pool.H2Pool
 
-    if (request.pathvar1) {
-        // Delete specific wine by id
+    if (request.pathvar2) {
         def sql = H2Pool.getSql(context)
-        def stmt = 'delete from WINE where ID=?'
-        if (sql.executeUpdate(stmt, [request.pathvar1]) > 0)
+        def stmt = 'delete from ' + request.pathvar1.toUpperCase() + ' where ID=?'
+        if (sql.executeUpdate(stmt, [request.pathvar2]) > 0) {
             response.setStatus(204, "successfully deleted")
-        else
-            response.setStatus(404, "nothing deleted")
-        sql.close()
+            return
+        }
     }
+    response.setStatus(404, "nothing deleted")
 
-The id of the wine is in pathvar1. The URL (with method set to DELETE) would be .../grest/wine/6 to remove wine #6.
-With Angular.js the client code is simply WineResource.remove({id: 6})
+The id of the wine is in pathvar2. The URL (with method set to DELETE) would be .../grest/h2tab/wine/6 to remove
+wine #6. With Angular.js the client code is simply WineResource.remove({id: 6})
 
 The script for POST looks like this:
 
-**WEB-INF/grest/wine_post.groovy**
+**web/WEB-INF/grest/h2tab_post.groovy**
 
     import pool.H2Pool
 
+    def tabname = request.pathvar1?.toUpperCase()
+    if (!tabname) {
+        response.setStatus(400, "table not specified")
+        return
+    }
+
     def sql = H2Pool.getSql(context)
 
-    if (data.id) {
-        // Update wine by exisgting id
-        def stmt = 'update WINE set WINENAME=?, GRAPES=?, COUNTRY=?, REGION=?, VINTAGE=?, DESCRIPTION=? where ID=?'
-        sql.executeUpdate(stmt, [
-               data.name,
-               data.grapes ?: null,
-               data.country ?: null,
-               data.region ?: null,
-               data.year ?: null,
-               data.description ?: null,
-               data.id
-            ]);
-        json(data)
+    if (data.ID) {
+        sql.resultSetConcurrency = java.sql.ResultSet.CONCUR_UPDATABLE
+        sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID) { row ->
+            data.each { fld, val -> row[fld] = val }
+        }
     }
     else {
-        // Insert new wine
-        def stmt = 'insert into WINE (WINENAME, GRAPES, COUNTRY, REGION, VINTAGE, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?)'
-        def ids = sql.executeInsert(stmt, [
-               data.name,
-               data.grapes ?: null,
-               data.country ?: null,
-               data.region ?: null,
-               data.year ?: null,
-               data.description ?: null,
-            ]);
-        data.id = ids[0][0]
-        json(data)
+        data.ID = sql.firstRow('select ' + tabname + '_SEQ.NEXTVAL as ID from DUAL').ID
+        sql.dataSet(tabname).add(data)
     }
-    sql.close()
+    json(data)
 
-The JSON payload in the request body is readily supplied in variable _data_.
+
+The JSON payload in the request body is readily supplied in variable _data_. The magic of the groovy.sql module
+really kicks in here. Just look at dataSet().add() for the insertion and the sql.eachRow/data.each
+combination for the update. Advanced Grooviness!
 
 Angular.js $resource in its default configuration executes all save operations via POST. Another RESTful pattern is
 to do updates as PUT. This would lead to two simpler scripts without if/else branching.
@@ -365,24 +360,23 @@ as the sources are changed. The class name and package tell the GSE to look for 
         static pool = null
 
         static getSql(context) {
+            if (!pool) initPool(context)
+            Sql.newInstance(pool)
+        }
 
-            if (pool) return Sql.newInstance(pool)
-
-            String db = "jdbc:h2:" + context.getRealPath("/WEB-INF/cellar")
-            pool = JdbcConnectionPool.create(db, "cellar", "cellar")
-
+        static initPool(context) {
+            String db = "jdbc:h2:" + context.getRealPath("/WEB-INF/schema")
+            pool = JdbcConnectionPool.create(db, "admin", "terces")
             def sql = Sql.newInstance(pool)
-            // Create initial database unless it already exists
-            if (!sql.firstRow("select * from INFORMATION_SCHEMA.TABLES where TABLE_NAME='WINE'")) {
-                String script = context.getRealPath("/WEB-INF/cellar.sql")
+            if (!sql.firstRow("select * from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='PUBLIC'")) {
+                String script = context.getRealPath("/WEB-INF/schema.sql")
                 sql.execute("runscript from '${script}' charset 'UTF-8'")
             }
-            return sql
         }
     }
-
+    
 I'm still marvelling at [H2](http://h2database.com). The sample code creates the database files
-automatically and then bootstraps the table and its indexes by running the _cellar.sql_ script included in WEB-INF.
+automatically and then bootstraps the table and its indexes by running the _schema.sql_ script included in WEB-INF.
 
 The entire database is just a 1.3 MB JAR. And that JAR already contains connection pooling and a friendly
 little database console servlet that can easily be included in custom web applications:
