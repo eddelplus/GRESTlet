@@ -13,10 +13,9 @@ if (data.ID) {
     sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID) { row ->
         data.each { fld, val -> row[fld] = val }
     }
-    json(data)
 }
 else {
     data.ID = sql.firstRow('select ' + tabname + '_SEQ.NEXTVAL as ID from DUAL').ID
     sql.dataSet(tabname).add(data)
-    json(data)
 }
+json(data)
