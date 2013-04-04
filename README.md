@@ -325,10 +325,11 @@ The script for POST looks like this:
 
     if (data.ID) {
         sql.resultSetConcurrency = java.sql.ResultSet.CONCUR_UPDATABLE
-        sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID.toBigInteger()) { row ->
-            data.each { fld, val -> row[fld] = val }
+        def md
+        sql.eachRow('select * from ' + tabname + ' where ID=' + data.ID.toBigInteger())
+            { md = it }
+            { for (i in 1..md.columnCount) it[md.getColumnName(i)] = data[md.getColumnName(i)] }
         }
-    }
     else {
         data.ID = sql.firstRow('select ' + tabname + '_SEQ.NEXTVAL as ID from DUAL').ID
         sql.dataSet(tabname).add(data)
@@ -337,8 +338,8 @@ The script for POST looks like this:
 
 
 The JSON payload in the request body is readily supplied in variable _data_. The magic of the groovy.sql module
-really kicks in here. Just look at dataSet().add() for the insertion and the sql.eachRow/data.each
-combination for the update. Advanced Grooviness!
+really kicks in here. Just look at dataSet().add() for the insertion and the sql.eachRow with two closures
+for the update. The first provides metadata in _it_, the second the row in the result set. Advanced Grooviness!
 
 Angular.js $resource in its default configuration executes all save operations via POST. Another RESTful pattern is
 to do updates as PUT. This would lead to two simpler scripts without if/else branching.
